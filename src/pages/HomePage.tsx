@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { FacultyCards, FacultyTable } from '../components/FacultyViews'
 import { useI18n } from '../i18n'
 import { loadFaculty } from '../lib/api'
@@ -45,17 +45,17 @@ export function HomePage() {
         <button aria-pressed={leaderboard === 'not-recommended'} onClick={() => update('board', 'not-recommended')}><span className="signal-dot charcoal" />{t('notRecommended')}</button>
       </div>
     </section>
-    <section className="filters" aria-label="Search and filters">
+    {faculty.length > 0 && <section className="filters" aria-label="Search and filters">
       <label className="search-field"><span className="sr-only">{t('search')}</span><input value={query} onChange={(event) => update('q', event.target.value)} placeholder={`⌕  ${t('search')}`} /></label>
       <label><span>{t('university')}</span><select value={university} onChange={(event) => update('university', event.target.value)}><option value="">{t('all')}</option>{universities.map((item) => <option key={item}>{item}</option>)}</select></label>
       <label><span>{t('country')}</span><select value={country} onChange={(event) => update('country', event.target.value)}><option value="">{t('all')}</option><option>United States</option><option>Canada</option></select></label>
       <label><span>{t('minReviews')}</span><select value={minReviews} onChange={(event) => update('minReviews', event.target.value)}><option value="0">0</option><option value="3">3</option><option value="5">5</option></select></label>
       <label><span>{t('relationship')}</span><select value={relationship} onChange={(event) => update('relationship', event.target.value)}><option value="">{t('all')}</option><option value="outreach">{t('outreach')}</option><option value="interview">{t('interview')}</option><option value="student">{t('student')}</option></select></label>
       <button className="button ghost clear-button" onClick={() => setParams({})}>{t('clear')}</button>
-    </section>
+    </section>}
     {error && <div className="error-panel" role="alert">{error}</div>}
-    {!error && filtered.length === 0 && <div className="empty-state">{t('noResults')}</div>}
-    <FacultyTable faculty={filtered} leaderboard={leaderboard} />
-    <FacultyCards faculty={filtered} />
+    {!error && faculty.length === 0 && <div className="empty-state"><p>{t('emptyLeaderboard')}</p><Link className="button primary" to="/request-faculty">{t('requestFirstFaculty')}</Link></div>}
+    {!error && faculty.length > 0 && filtered.length === 0 && <div className="empty-state">{t('noResults')}</div>}
+    {filtered.length > 0 && <><FacultyTable faculty={filtered} leaderboard={leaderboard} /><FacultyCards faculty={filtered} /></>}
   </>
 }

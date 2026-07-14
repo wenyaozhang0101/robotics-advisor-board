@@ -10,12 +10,6 @@ interface AdminQueue {
   facultyRequests: Array<{id:string;proposed_name:string;proposed_university:string;created_at:string}>
 }
 
-const demoQueue: QueueItem[] = [
-  { id:'pending-demo-01',kind:'review',type:'Review',subject:'Mira Solace',submitted:'12 min ago',risk:'Routine' },
-  { id:'report-demo-02',kind:'report',type:'Report',subject:'Review r-2',submitted:'48 min ago',risk:'Personal information' },
-  { id:'faculty-demo-03',kind:'faculty_request',type:'Faculty request',subject:'Emery North',submitted:'2 hr ago',risk:'Verify profile' },
-]
-
 function normalizeQueue(queue: AdminQueue): QueueItem[] {
   return [
     ...queue.reviews.map((item)=>({id:item.id,kind:'review' as const,type:'Review',subject:`Faculty ${item.faculty_id.slice(0,8)}…`,submitted:new Date(item.created_at).toLocaleString(),risk:`${item.relationship_type} · ${item.recommendation_score}/10`})),
@@ -28,7 +22,7 @@ export function AdminPage() {
   const { t } = useI18n()
   const [allowed,setAllowed] = useState(appMode==='demo')
   const [status,setStatus] = useState('')
-  const [queue,setQueue] = useState<QueueItem[]>(appMode==='demo'?demoQueue:[])
+  const [queue,setQueue] = useState<QueueItem[]>([])
   useEffect(()=>{if(appMode==='live')checkAdminAccess().then(setAllowed)},[])
   useEffect(()=>{if(appMode==='live'&&allowed)invokeAdmin<AdminQueue>({action:'list_queue'}).then((result)=>setQueue(normalizeQueue(result.data!))).catch((error:Error)=>setStatus(error.message))},[allowed])
   async function login(event:FormEvent<HTMLFormElement>){event.preventDefault();const email=new FormData(event.currentTarget).get('email')?.toString()??'';await requestAdminLink(email);setStatus('Check the supplied administrator mailbox for a sign-in link.')}
@@ -42,6 +36,6 @@ export function AdminPage() {
   return <div><section className="admin-heading"><div><span className="eyebrow">PROTECTED OPERATIONS</span><h1>{t('adminTitle')}</h1><p>{t('adminDemo')}</p></div><button className="button ghost" onClick={()=>invokeAdmin({action:'export'}).then(()=>setStatus(appMode==='demo'?'Demo export preview completed.':'Export data prepared.'))}>Export records</button></section>
     {status&&<p className="status-message" role="status">{status}</p>}
     <section className="admin-stats"><div><span>Pending</span><strong>{queue.length}</strong></div><div><span>Open reports</span><strong>{reports}</strong></div><div><span>Mode</span><strong>{appMode}</strong></div></section>
-    <section className="panel moderation-table"><div className="section-heading"><h2>Review queue</h2>{appMode==='demo'&&<span className="badge provisional">Read-only demo</span>}</div><table><thead><tr><th>Type</th><th>Subject</th><th>Submitted</th><th>Attention</th><th>Actions</th></tr></thead><tbody>{queue.map((item)=><tr key={item.id}><td>{item.type}</td><td>{item.subject}</td><td>{item.submitted}</td><td>{item.risk}</td><td><div className="row-actions"><button disabled={appMode==='demo'} onClick={()=>act(item,true)}>{item.kind==='report'?'Resolve':'Approve'}</button><button disabled={appMode==='demo'} onClick={()=>act(item,false)}>{item.kind==='report'?'Dismiss':'Reject'}</button></div></td></tr>)}</tbody></table></section>
+    <section className="panel moderation-table"><div className="section-heading"><h2>Review queue</h2>{appMode==='demo'&&<span className="badge provisional">Read-only demo</span>}</div>{queue.length === 0 ? <div className="empty-state">{t('emptyModeration')}</div> : <table><thead><tr><th>Type</th><th>Subject</th><th>Submitted</th><th>Attention</th><th>Actions</th></tr></thead><tbody>{queue.map((item)=><tr key={item.id}><td>{item.type}</td><td>{item.subject}</td><td>{item.submitted}</td><td>{item.risk}</td><td><div className="row-actions"><button disabled={appMode==='demo'} onClick={()=>act(item,true)}>{item.kind==='report'?'Resolve':'Approve'}</button><button disabled={appMode==='demo'} onClick={()=>act(item,false)}>{item.kind==='report'?'Dismiss':'Reject'}</button></div></td></tr>)}</tbody></table>}</section>
   </div>
 }
