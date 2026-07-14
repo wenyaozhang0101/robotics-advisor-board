@@ -50,7 +50,7 @@ export function submitReview(draft: ReviewDraft) {
 
 export async function requestAdminLink(email: string) {
   if (appMode === 'demo') return
-  const { error } = await getClient().auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}admin` } })
+  const { error } = await getClient().auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}` } })
   if (error) throw new Error('Administrator sign-in link could not be sent.')
 }
 
