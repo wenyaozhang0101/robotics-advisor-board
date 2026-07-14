@@ -17,4 +17,9 @@ export const reviewSchema = z.object({
 })
 
 export const reportSchema = z.object({ reviewId: z.string().uuid(), reason: z.enum(['personal_information','harassment','fabricated_experience','conflict_of_interest','incorrect_faculty','duplicate_review','unsupported_serious_allegation','other']), details: z.string().trim().max(1000), turnstileToken: z.string().max(2048) })
-export const facultyRequestSchema = z.object({ proposedName: z.string().trim().min(2).max(160), proposedUniversity: z.string().trim().min(2).max(200), proposedDepartment: z.string().trim().min(2).max(200), officialProfileUrl: z.string().url().max(500).refine((value) => value.startsWith('https://')), turnstileToken: z.string().max(2048) })
+export const facultyRequestSchema = z.object({
+  proposedName: z.string().trim().min(2).max(160), proposedUniversity: z.string().trim().min(2).max(200), proposedDepartment: z.string().trim().min(2).max(200),
+  proposedCountry: z.enum(['United States','Canada']),
+  researchAreas: z.string().trim().min(2).max(1000).transform((value) => [...new Set(value.split(',').map((item) => item.trim()).filter(Boolean))]).refine((items) => items.length > 0 && items.length <= 20 && items.every((item) => item.length <= 100)),
+  officialProfileUrl: z.string().url().max(500).refine((value) => value.startsWith('https://')), turnstileToken: z.string().max(2048),
+})

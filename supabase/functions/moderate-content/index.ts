@@ -5,7 +5,8 @@ const schema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('list_queue') }),
   z.object({ action: z.literal('moderate_review'), reviewId: z.string().uuid(), status: z.enum(['approved','rejected','hidden','appealed']), note: z.string().max(2000).nullable().optional() }),
   z.object({ action: z.literal('resolve_report'), reportId: z.string().uuid(), status: z.enum(['resolved','dismissed']), note: z.string().max(2000).nullable().optional() }),
-  z.object({ action: z.literal('review_faculty_request'), requestId: z.string().uuid(), status: z.enum(['approved','rejected']), note: z.string().max(2000).nullable().optional() }),
+  z.object({ action: z.literal('approve_faculty_request'), requestId: z.string().uuid(), note: z.string().max(2000).nullable().optional() }),
+  z.object({ action: z.literal('review_faculty_request'), requestId: z.string().uuid(), status: z.literal('rejected'), note: z.string().max(2000).nullable().optional() }),
   z.object({ action: z.literal('update_faculty'), facultyId: z.string().uuid(), name: z.string().trim().min(2).max(160), university: z.string().trim().min(2).max(200), department: z.string().trim().min(2).max(200), country: z.enum(['United States','Canada']), officialProfileUrl: z.string().url().startsWith('https://'), researchAreas: z.array(z.string().trim().min(1).max(100)).max(20) }),
   z.object({ action: z.literal('export') }),
 ])
@@ -24,7 +25,7 @@ Deno.serve(async (request) => {
       const [reviews, reports, requests] = await Promise.all([
         serviceClient.from('reviews').select('id,faculty_id,relationship_type,experience_year,recommendation_score,positive_comment,concern_comment,additional_context,created_at').eq('moderation_status','pending').order('created_at').limit(100),
         serviceClient.from('reports').select('id,review_id,reason,details,created_at').eq('status','open').order('created_at').limit(100),
-        serviceClient.from('faculty_requests').select('id,proposed_name,proposed_university,proposed_department,official_profile_url,created_at').eq('status','pending').order('created_at').limit(100),
+        serviceClient.from('faculty_requests').select('id,proposed_name,proposed_university,proposed_department,proposed_country,research_areas,official_profile_url,created_at').eq('status','pending').order('created_at').limit(100),
       ])
       if (reviews.error || reports.error || requests.error) throw new Error('queue_read_failed')
       return envelope(request,200,{ reviews:reviews.data, reports:reports.data, facultyRequests:requests.data },null,requestId)
@@ -36,6 +37,10 @@ Deno.serve(async (request) => {
     if (input.action === 'resolve_report') {
       const { error } = await userClient.rpc('resolve_report',{p_report:input.reportId,p_status:input.status,p_note:input.note??null}); if(error)throw error
       return envelope(request,200,{status:input.status},null,requestId)
+    }
+    if (input.action === 'approve_faculty_request') {
+      const { data: facultyId, error } = await userClient.rpc('approve_faculty_request',{p_request:input.requestId,p_note:input.note??null}); if(error)throw error
+      return envelope(request,200,{status:'approved',facultyId},null,requestId)
     }
     if (input.action === 'review_faculty_request') {
       const { error } = await userClient.rpc('review_faculty_request',{p_request:input.requestId,p_status:input.status,p_note:input.note??null}); if(error)throw error

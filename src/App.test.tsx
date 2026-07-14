@@ -30,6 +30,11 @@ describe('core experience',()=>{
     view('/submit'); await userEvent.click(screen.getByRole('button',{name:'Preview submission'}))
     expect(await screen.findByRole('alert')).toBeVisible(); expect(screen.getByLabelText(/Faculty/)).toBeVisible()
   })
+  it('collects the public metadata required for a faculty request',()=>{
+    view('/request-faculty')
+    expect(screen.getByLabelText('Country')).toBeVisible()
+    expect(screen.getByLabelText(/Research areas/)).toBeVisible()
+  })
   it('keeps demo moderation actions read-only',()=>{
     view('/admin'); expect(screen.getByRole('heading',{name:'Moderation workspace'})).toBeVisible()
     expect(screen.getByText('No pending moderation items.')).toBeVisible()

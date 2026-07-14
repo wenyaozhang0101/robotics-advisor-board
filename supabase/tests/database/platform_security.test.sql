@@ -1,11 +1,12 @@
 begin;
-select plan(13);
+select plan(15);
 
 select has_table('public','reviews','reviews table exists');
 select has_function('public','get_public_reviews',array['uuid'],'safe review RPC exists');
 select has_function('public','get_faculty_rankings',array[]::text[],'ranking RPC exists');
 select has_function('public','resolve_report',array['uuid','report_status','text'],'report moderation RPC exists');
 select has_function('public','review_faculty_request',array['uuid','request_status','text'],'faculty request moderation RPC exists');
+select has_function('public','approve_faculty_request',array['uuid','text'],'faculty approval RPC exists');
 select is((select relrowsecurity from pg_class where oid='public.reviews'::regclass),true,'reviews RLS enabled');
 
 set local role anon;
@@ -20,6 +21,7 @@ select is(public.is_admin(),false,'unauthenticated caller is not administrator')
 set local role authenticated;
 set local "request.jwt.claim.sub" = '20000000-0000-4000-8000-000000000001';
 select throws_ok($$select public.moderate_review('30000000-0000-4000-8000-000000000001','approved',null)$$,'P0001','not_authorized','ordinary user cannot approve reviews');
+select throws_ok($$select public.approve_faculty_request('30000000-0000-4000-8000-000000000001',null)$$,'P0001','not_authorized','ordinary user cannot approve faculty requests');
 reset role;
 
 select * from finish();

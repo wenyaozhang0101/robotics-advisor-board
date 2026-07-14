@@ -4,6 +4,7 @@ import { TurnstileWidget } from '../components/TurnstileWidget'
 import { useI18n } from '../i18n'
 import { appMode, loadFaculty, submitReview } from '../lib/api'
 import { enabledScores, validateReview } from '../lib/validation'
+import { resetTurnstile } from '../lib/turnstile'
 import type { Faculty, RelationshipType, ReviewDraft } from '../types'
 
 const relationshipTypes: RelationshipType[] = ['outreach_only', 'interviewed', 'received_offer', 'current_student', 'former_student', 'left_before_graduation']
@@ -37,13 +38,20 @@ export function ReviewFormPage() {
   }))
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setStatus('')
-    const token = new FormData(event.currentTarget).get('turnstileToken')?.toString() ?? ''
+    const form = event.currentTarget
+    const token = new FormData(form).get('turnstileToken')?.toString() ?? ''
     const next = { ...draft, turnstileToken: token }
     const result = validateReview(next)
     if (!result.success) { setErrors([...new Set(result.error.issues.map((issue) => issue.message))]); return }
     setErrors([])
-    await submitReview(result.data)
-    setStatus(appMode === 'demo' ? t('notStored') : t('pending'))
+    try {
+      await submitReview(result.data)
+      setStatus(appMode === 'demo' ? t('notStored') : t('pending'))
+      if (appMode === 'live') resetTurnstile(form)
+    } catch (caught) {
+      setErrors([caught instanceof Error ? caught.message : 'The submission failed.'])
+      if (appMode === 'live') resetTurnstile(form)
+    }
   }
   return <div className="form-page">
     <Link to="/" className="back-link">← {t('back')}</Link>
@@ -69,7 +77,7 @@ export function ReviewFormPage() {
       <label className="checkbox-label"><input type="checkbox" checked={draft.agreed} onChange={(event) => update('agreed', event.target.checked)} /><span>{t('consent')}</span></label>
       <TurnstileWidget action="submit_review" />
       {status && <p className="success-panel" role="status">{status}</p>}
-      <button className="button primary submit-button" type="submit">{t('demoSubmit')}</button>
+      <button className="button primary submit-button" type="submit">{t(appMode === 'demo' ? 'demoSubmit' : 'liveSubmit')}</button>
     </form>
   </div>
 }

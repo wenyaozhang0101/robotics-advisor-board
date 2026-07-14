@@ -7,14 +7,14 @@ interface QueueItem { id: string; kind: QueueKind; type: string; subject: string
 interface AdminQueue {
   reviews: Array<{id:string;faculty_id:string;relationship_type:string;recommendation_score:number;created_at:string}>
   reports: Array<{id:string;review_id:string;reason:string;created_at:string}>
-  facultyRequests: Array<{id:string;proposed_name:string;proposed_university:string;created_at:string}>
+  facultyRequests: Array<{id:string;proposed_name:string;proposed_university:string;proposed_department:string;proposed_country:string;research_areas:string[];official_profile_url:string;created_at:string}>
 }
 
 function normalizeQueue(queue: AdminQueue): QueueItem[] {
   return [
     ...queue.reviews.map((item)=>({id:item.id,kind:'review' as const,type:'Review',subject:`Faculty ${item.faculty_id.slice(0,8)}…`,submitted:new Date(item.created_at).toLocaleString(),risk:`${item.relationship_type} · ${item.recommendation_score}/10`})),
     ...queue.reports.map((item)=>({id:item.id,kind:'report' as const,type:'Report',subject:`Review ${item.review_id.slice(0,8)}…`,submitted:new Date(item.created_at).toLocaleString(),risk:item.reason.replaceAll('_',' ')})),
-    ...queue.facultyRequests.map((item)=>({id:item.id,kind:'faculty_request' as const,type:'Faculty request',subject:`${item.proposed_name} · ${item.proposed_university}`,submitted:new Date(item.created_at).toLocaleString(),risk:'Verify official profile'})),
+    ...queue.facultyRequests.map((item)=>({id:item.id,kind:'faculty_request' as const,type:'Faculty request',subject:`${item.proposed_name} · ${item.proposed_university} · ${item.proposed_department}`,submitted:new Date(item.created_at).toLocaleString(),risk:`${item.proposed_country} · ${item.research_areas.join(', ')} · verify ${item.official_profile_url}`})),
   ]
 }
 
@@ -28,7 +28,7 @@ export function AdminPage() {
   async function login(event:FormEvent<HTMLFormElement>){event.preventDefault();const email=new FormData(event.currentTarget).get('email')?.toString()??'';await requestAdminLink(email);setStatus('Check the supplied administrator mailbox for a sign-in link.')}
   async function act(item:QueueItem,positive:boolean){
     if(appMode==='demo')return
-    const body=item.kind==='review'?{action:'moderate_review',reviewId:item.id,status:positive?'approved':'rejected'}:item.kind==='report'?{action:'resolve_report',reportId:item.id,status:positive?'resolved':'dismissed'}:{action:'review_faculty_request',requestId:item.id,status:positive?'approved':'rejected'}
+    const body=item.kind==='review'?{action:'moderate_review',reviewId:item.id,status:positive?'approved':'rejected'}:item.kind==='report'?{action:'resolve_report',reportId:item.id,status:positive?'resolved':'dismissed'}:positive?{action:'approve_faculty_request',requestId:item.id}:{action:'review_faculty_request',requestId:item.id,status:'rejected'}
     await invokeAdmin(body);setQueue((items)=>items.filter((candidate)=>candidate.id!==item.id));setStatus(`${item.type} updated.`)
   }
   if(!allowed)return <div className="form-page"><div className="form-intro"><h1>{t('adminTitle')}</h1><p>Administrator access is verified against the server-side admin role table.</p></div><form className="panel compact-form" onSubmit={login}><label><span>Administrator email</span><input type="email" name="email" required/></label>{status&&<p role="status" className="status-message">{status}</p>}<button className="button primary">Send sign-in link</button></form></div>

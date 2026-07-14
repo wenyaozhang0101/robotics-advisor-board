@@ -1,16 +1,18 @@
-import { consumeLimit, envelope, facultyAlias, handleError, options, readJson, requireUser, verifyTurnstile } from '../_shared/core.ts'
+import { consumeLimit, envelope, facultyAlias, handleError, options, PublicError, readJson, requireUser, verifyTurnstile } from '../_shared/core.ts'
 import { reviewSchema } from '../_shared/schemas.ts'
 
 Deno.serve(async (request) => {
   const preflight = options(request); if (preflight) return preflight
   const requestId = crypto.randomUUID()
+  let limiter: { serviceClient: Awaited<ReturnType<typeof requireUser>>['serviceClient']; userId: string } | null = null
+  let limitRecorded = false
   try {
     if (request.method !== 'POST') return envelope(request, 405, null, { code: 'method_not_allowed', message: 'POST is required.' }, requestId)
-    const { user, serviceClient } = await requireUser(request)
+    const { user, serviceClient } = await requireUser(request); limiter = { serviceClient,userId:user.id }
     const parsed = reviewSchema.safeParse(await readJson(request))
-    if (!parsed.success) { await consumeLimit(serviceClient,user.id,'review',false,3,5); return envelope(request,422,null,{ code:'validation_failed',message:'Review fields are invalid.'},requestId) }
+    if (!parsed.success) throw new PublicError('validation_failed','Review fields are invalid.',422)
     await verifyTurnstile(parsed.data.turnstileToken, 'submit_review')
-    await consumeLimit(serviceClient,user.id,'review',true,3,5)
+    await consumeLimit(serviceClient,user.id,'review',true,3,5); limitRecorded = true
     const { data: faculty } = await serviceClient.from('faculty').select('id').eq('id', parsed.data.facultyId).eq('status', 'approved').maybeSingle()
     if (!faculty) return envelope(request,404,null,{ code:'faculty_not_found',message:'The faculty profile is unavailable.'},requestId)
     const alias = await facultyAlias(user.id, parsed.data.facultyId)
@@ -23,5 +25,11 @@ Deno.serve(async (request) => {
     const dimensions = Object.entries(parsed.data.dimensions).filter(([,score]) => score !== null).map(([dimension,score]) => ({ review_id: review.id, dimension: dimension.toLowerCase().replaceAll(/[^a-z]+/g,'_').replace(/^_|_$/g,''), score }))
     if (dimensions.length) { const { error: dimensionError } = await serviceClient.from('student_experience_dimensions').insert(dimensions); if (dimensionError) throw dimensionError }
     return envelope(request,200,{ status:'pending' },null,requestId)
-  } catch (error) { return handleError(request,error,requestId) }
+  } catch (error) {
+    let failure = error
+    if (limiter && !limitRecorded && !(error instanceof PublicError && error.code === 'rate_limited')) {
+      try { await consumeLimit(limiter.serviceClient,limiter.userId,'review',false,3,5) } catch (limitError) { failure = limitError }
+    }
+    return handleError(request,failure,requestId)
+  }
 })

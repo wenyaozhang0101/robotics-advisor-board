@@ -10,6 +10,8 @@ test('leaderboard, detail, and form are keyboard reachable', async ({ page }, te
   await page.screenshot({ path: `artifacts/screenshots/leaderboard-${testInfo.project.name}.png`, fullPage: true })
   await page.getByRole('link', { name: 'Request the first faculty profile' }).click()
   await expect(page.getByRole('heading', { name: 'Request a faculty profile' })).toBeVisible()
+  await expect(page.getByLabel('Country')).toBeVisible()
+  await expect(page.getByLabel(/Research areas/)).toBeVisible()
 })
 
 test('review form validates and announces errors', async ({ page }) => {

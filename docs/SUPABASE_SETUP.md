@@ -8,6 +8,6 @@ Manual production steps:
 4. Deploy `submit-review`, `submit-report`, `request-faculty`, and `moderate-content` with JWT verification enabled.
 5. Add secrets: `TURNSTILE_SECRET_KEY`, `TURNSTILE_ALLOWED_HOSTNAMES`, `PSEUDONYM_HMAC_SECRET`, and `ALLOWED_ORIGINS`. Supabase supplies its URL, anonymous key, and service-role value to functions.
 6. Add administrators by Auth UUID to `admin_roles`; test denial with an ordinary and an anonymous user.
-7. Put only the project URL and publishable key in GitHub repository variables.
+7. Put only the project URL, publishable key, and Turnstile site key in GitHub repository variables. Keep `VITE_APP_MODE=demo` until all smoke tests pass, then change it to `live` and redeploy `production`.
 
 Do not enable live mode until pending/rejected reviews are proven unreadable and the moderation queue is staffed.
