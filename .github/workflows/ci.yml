@@ -44,4 +44,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: denoland/setup-deno@v2
         with: { deno-version: v2.x }
-      - run: deno test supabase/functions/_shared/schemas_test.ts
+      - run: deno test --config supabase/functions/deno.json supabase/functions/_shared/schemas_test.ts
+      - name: Type-check Edge Functions
+        run: |
+          deno check --config supabase/functions/deno.json supabase/functions/submit-review/index.ts
+          deno check --config supabase/functions/deno.json supabase/functions/submit-report/index.ts
+          deno check --config supabase/functions/deno.json supabase/functions/request-faculty/index.ts
+          deno check --config supabase/functions/deno.json supabase/functions/moderate-content/index.ts
