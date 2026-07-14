@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js'
 import { demoFaculty, demoReviews } from '../data/demo'
 import type { ApiEnvelope, Faculty, PublicReview, ReviewDraft } from '../types'
 
@@ -10,7 +10,7 @@ function getClient() {
   const url = import.meta.env.VITE_SUPABASE_URL
   const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
   if (!url || !key) throw new Error('Live mode requires Supabase public configuration.')
-  client = createClient(url, key)
+  client = createClient(url, key, { auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true } })
   return client
 }
 
@@ -50,8 +50,34 @@ export function submitReview(draft: ReviewDraft) {
 
 export async function requestAdminLink(email: string) {
   if (appMode === 'demo') return
-  const { error } = await getClient().auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}` } })
-  if (error) throw new Error('Administrator sign-in link could not be sent.')
+  const { error } = await getClient().auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}auth/callback/`, shouldCreateUser: false } })
+  if (error) throw new Error(error.message || 'Administrator sign-in link could not be sent.')
+}
+
+export async function completeAdminSignIn() {
+  if (appMode === 'demo') return false
+  const supabase = getClient()
+  const session = await new Promise<Session>((resolve, reject) => {
+    let settled = false
+    let timer = 0
+    let unsubscribe = () => {}
+    const fail = (error: Error) => {
+      if (settled) return
+      settled = true; clearTimeout(timer); unsubscribe(); reject(error)
+    }
+    const finish = (value: Session | null) => {
+      if (settled || !value || value.user.is_anonymous) return
+      settled = true; clearTimeout(timer); unsubscribe(); resolve(value)
+    }
+    const { data } = supabase.auth.onAuthStateChange((_event, value) => finish(value))
+    unsubscribe = () => data.subscription.unsubscribe()
+    timer = window.setTimeout(() => fail(new Error('No administrator session was returned. Open the newest email link in the same browser used to request it.')), 10_000)
+    supabase.auth.getSession().then(({ data: current, error }) => error ? fail(error) : finish(current.session)).catch((error) => fail(error instanceof Error ? error : new Error('Sign-in could not be completed.')))
+  })
+  if (session.user.is_anonymous) return false
+  const { data, error } = await supabase.rpc('is_admin')
+  if (error) throw new Error('Administrator authorization could not be verified.')
+  return Boolean(data)
 }
 
 export async function checkAdminAccess() {

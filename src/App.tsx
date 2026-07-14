@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { AdminPage } from './pages/AdminPage'
+import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { FacultyPage } from './pages/FacultyPage'
 import { HomePage } from './pages/HomePage'
 import { PolicyPage } from './pages/PolicyPage'
@@ -14,6 +15,7 @@ export default function App() {
     <Route path="submit" element={<ReviewFormPage />} />
     <Route path="request-faculty" element={<RequestFacultyPage />} />
     <Route path="admin" element={<AdminPage />} />
+    <Route path="auth/callback" element={<AuthCallbackPage />} />
     <Route path="guidelines" element={<PolicyPage page="guidelines" />} />
     <Route path="privacy" element={<PolicyPage page="privacy" />} />
     <Route path="moderation-policy" element={<PolicyPage page="moderation" />} />

@@ -16,6 +16,7 @@ enabled = true
 site_url = "https://advisor-signal-project.github.io/advisor-signal/"
 additional_redirect_urls = [
   "https://advisor-signal-project.github.io/advisor-signal/admin",
+  "https://advisor-signal-project.github.io/advisor-signal/auth/callback/",
   "http://localhost:5173/admin",
   "http://127.0.0.1:5173/admin",
 ]

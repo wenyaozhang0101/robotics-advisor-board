@@ -4,7 +4,7 @@ const source = new URL('../dist/index.html', import.meta.url)
 await copyFile(source, new URL('../dist/404.html', import.meta.url))
 
 const staticRoutes = [
-  'submit', 'request-faculty', 'admin', 'guidelines', 'privacy',
+  'submit', 'request-faculty', 'admin', 'auth/callback', 'guidelines', 'privacy',
   'moderation-policy', 'corrections', 'methodology', 'limitations', 'contact',
 ]
 
