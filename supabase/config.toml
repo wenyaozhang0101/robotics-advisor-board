@@ -1,0 +1,46 @@
+project_id = "advisor-signal-local"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[auth]
+enabled = true
+site_url = "https://advisor-signal-project.github.io/advisor-signal/"
+additional_redirect_urls = [
+  "https://advisor-signal-project.github.io/advisor-signal/admin",
+  "https://advisor-signal-project.github.io/advisor-signal/auth/callback/",
+  "http://localhost:5173/admin",
+  "http://127.0.0.1:5173/admin",
+]
+enable_signup = true
+enable_anonymous_sign_ins = true
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+secure_password_change = false
+max_frequency = "1m"
+otp_length = 8
+otp_expiry = 3600
+
+[functions.submit-review]
+verify_jwt = true
+[functions.submit-report]
+verify_jwt = true
+[functions.request-faculty]
+verify_jwt = true
+[functions.moderate-content]
+verify_jwt = true

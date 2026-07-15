@@ -1,0 +1,2 @@
+-- Intentionally empty. Production and local environments start without
+-- faculty or review records; profiles enter through the moderated request flow.
