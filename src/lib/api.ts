@@ -1,4 +1,11 @@
-import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js'
+import {
+  createClient,
+  FunctionsFetchError,
+  FunctionsHttpError,
+  FunctionsRelayError,
+  type Session,
+  type SupabaseClient,
+} from '@supabase/supabase-js'
 import { demoFaculty, demoReviews } from '../data/demo'
 import type { ApiEnvelope, Faculty, PublicReview, ReviewDraft } from '../types'
 
@@ -36,12 +43,40 @@ async function ensureAnonymousSession() {
   if (error) throw new Error('Anonymous sign-in failed.')
 }
 
+function messageWithRequestId(message: string, requestId?: unknown) {
+  return typeof requestId === 'string' && /^[0-9a-f-]{36}$/i.test(requestId)
+    ? `${message} (Request ID: ${requestId})`
+    : message
+}
+
+export async function functionErrorMessage(error: unknown) {
+  if (error instanceof FunctionsHttpError) {
+    try {
+      const response = error.context as Response
+      const payload = await response.clone().json() as Partial<ApiEnvelope<unknown>> & { message?: unknown }
+      const message = typeof payload.error?.message === 'string'
+        ? payload.error.message
+        : typeof payload.message === 'string' ? payload.message : null
+      if (message) return messageWithRequestId(message, payload.requestId)
+    } catch {
+      // Fall through to a safe status-based message when the relay body is not JSON.
+    }
+    const status = (error.context as Response | undefined)?.status
+    return status ? `The submission service rejected the request (HTTP ${status}).` : 'The submission service rejected the request.'
+  }
+  if (error instanceof FunctionsRelayError) return 'The submission service is temporarily unavailable. Please try again.'
+  if (error instanceof FunctionsFetchError) return 'The submission service could not be reached. Check your network connection and try again.'
+  return 'The submission could not be completed.'
+}
+
 export async function invokePublic<T>(name: string, body: unknown): Promise<ApiEnvelope<T>> {
   if (appMode === 'demo') return { data: null, error: null, requestId: crypto.randomUUID() }
   await ensureAnonymousSession()
   const { data, error } = await getClient().functions.invoke(name, { body: body as Record<string, unknown> })
-  if (error) throw new Error('The submission service could not be reached.')
-  return data as ApiEnvelope<T>
+  if (error) throw new Error(await functionErrorMessage(error))
+  const response = data as ApiEnvelope<T>
+  if (response?.error) throw new Error(messageWithRequestId(response.error.message, response.requestId))
+  return response
 }
 
 export function submitReview(draft: ReviewDraft) {
@@ -106,6 +141,8 @@ export async function checkAdminAccess() {
 export async function invokeAdmin<T>(body: unknown): Promise<ApiEnvelope<T>> {
   if (appMode === 'demo') return { data: null, error: null, requestId: crypto.randomUUID() }
   const { data, error } = await getClient().functions.invoke('moderate-content', { body: body as Record<string, unknown> })
-  if (error) throw new Error('Moderation operation failed.')
-  return data as ApiEnvelope<T>
+  if (error) throw new Error(await functionErrorMessage(error))
+  const response = data as ApiEnvelope<T>
+  if (response?.error) throw new Error(messageWithRequestId(response.error.message, response.requestId))
+  return response
 }
