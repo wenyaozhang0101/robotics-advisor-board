@@ -54,6 +54,20 @@ export async function requestAdminLink(email: string) {
   if (error) throw new Error(error.message || 'Administrator sign-in link could not be sent.')
 }
 
+export async function signInAdminWithPassword(email: string, password: string) {
+  if (appMode === 'demo') return true
+  const supabase = getClient()
+  const { data: signIn, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+  if (signInError) throw new Error(signInError.message || 'Administrator sign-in failed.')
+  if (!signIn.user || signIn.user.is_anonymous) throw new Error('A non-anonymous administrator account is required.')
+  const { data: allowed, error: roleError } = await supabase.rpc('is_admin')
+  if (roleError || !allowed) {
+    await supabase.auth.signOut({ scope: 'local' })
+    throw new Error('This account does not have administrator access.')
+  }
+  return true
+}
+
 export async function completeAdminSignIn() {
   if (appMode === 'demo') return false
   const supabase = getClient()

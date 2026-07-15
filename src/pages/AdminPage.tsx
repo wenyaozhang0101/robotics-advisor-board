@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useI18n } from '../i18n'
-import { appMode, checkAdminAccess, invokeAdmin, requestAdminLink } from '../lib/api'
+import { appMode, checkAdminAccess, invokeAdmin, requestAdminLink, signInAdminWithPassword } from '../lib/api'
 
 type QueueKind = 'review' | 'report' | 'faculty_request'
 interface QueueItem { id: string; kind: QueueKind; type: string; subject: string; submitted: string; risk: string }
@@ -28,7 +28,16 @@ export function AdminPage() {
   useEffect(()=>{if(appMode==='live'&&allowed)invokeAdmin<AdminQueue>({action:'list_queue'}).then((result)=>setQueue(normalizeQueue(result.data!))).catch((error:Error)=>setStatus(error.message))},[allowed])
   async function login(event:FormEvent<HTMLFormElement>){
     event.preventDefault(); setStatus(''); setSending(true)
-    const email=new FormData(event.currentTarget).get('email')?.toString()??''
+    const values=new FormData(event.currentTarget)
+    const email=values.get('email')?.toString()??''
+    const password=values.get('password')?.toString()??''
+    try { await signInAdminWithPassword(email,password); setAllowed(true); setStatus('Administrator sign-in completed.') }
+    catch(error) { setStatus(error instanceof Error ? error.message : 'Administrator sign-in failed.') }
+    finally { setSending(false) }
+  }
+  async function sendLink(form:HTMLFormElement){
+    setStatus(''); setSending(true)
+    const email=new FormData(form).get('email')?.toString()??''
     try { await requestAdminLink(email); setStatus('Check the supplied administrator mailbox for the newest sign-in link.') }
     catch(error) { setStatus(error instanceof Error ? error.message : 'Administrator sign-in link could not be sent.') }
     finally { setSending(false) }
@@ -38,7 +47,7 @@ export function AdminPage() {
     const body=item.kind==='review'?{action:'moderate_review',reviewId:item.id,status:positive?'approved':'rejected'}:item.kind==='report'?{action:'resolve_report',reportId:item.id,status:positive?'resolved':'dismissed'}:positive?{action:'approve_faculty_request',requestId:item.id}:{action:'review_faculty_request',requestId:item.id,status:'rejected'}
     await invokeAdmin(body);setQueue((items)=>items.filter((candidate)=>candidate.id!==item.id));setStatus(`${item.type} updated.`)
   }
-  if(!allowed)return <div className="form-page"><div className="form-intro"><h1>{t('adminTitle')}</h1><p>Administrator access is verified against the server-side admin role table.</p></div><form className="panel compact-form" onSubmit={login}><label><span>Administrator email</span><input type="email" name="email" required/></label>{status&&<p role="status" className="status-message">{status}</p>}<button className="button primary" disabled={sending}>{sending?'Sending…':'Send sign-in link'}</button></form></div>
+  if(!allowed)return <div className="form-page"><div className="form-intro"><h1>{t('adminTitle')}</h1><p>Administrator access is verified against the server-side admin role table.</p></div><form className="panel compact-form" onSubmit={login}><label><span>Administrator email</span><input type="email" name="email" autoComplete="username" required/></label><label><span>管理员密码 / Administrator password</span><input type="password" name="password" autoComplete="current-password" minLength={14} required/></label>{status&&<p role="status" className="status-message">{status}</p>}<button className="button primary" disabled={sending}>{sending?'Signing in…':'Sign in with password'}</button><button type="button" className="button ghost" disabled={sending} onClick={(event)=>sendLink(event.currentTarget.form!)}>Send email link (limited)</button></form></div>
   const reports=queue.filter((item)=>item.kind==='report').length
   return <div><section className="admin-heading"><div><span className="eyebrow">PROTECTED OPERATIONS</span><h1>{t('adminTitle')}</h1><p>{t('adminDemo')}</p></div><button className="button ghost" onClick={()=>invokeAdmin({action:'export'}).then(()=>setStatus(appMode==='demo'?'Demo export preview completed.':'Export data prepared.'))}>Export records</button></section>
     {status&&<p className="status-message" role="status">{status}</p>}
